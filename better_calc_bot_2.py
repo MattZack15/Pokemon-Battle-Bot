@@ -81,13 +81,14 @@ class BetterCalc2(Player):
         
         # If the player can attack, it will
         if battle.available_moves:
+            
             #Consider Status Moves
             ChosenStatusMove = ConsiderStatusMove(battle.active_pokemon, battle.opponent_active_pokemon, battle, self.randdata)
 
             if ChosenStatusMove != None:
                 return self.create_order(ChosenStatusMove, terastallize= RandomTerastallize(battle))
 
-            best_move = max(battle.available_moves, key=lambda move: CalcDamage(move, battle.active_pokemon, battle.opponent_active_pokemon, battle, UseSpecificCalc = True) * move.accuracy)
+            best_move = max(GetMoves(battle.active_pokemon, battle, self.randdata).values(), key=lambda move: CalcDamage(move, battle.active_pokemon, battle.opponent_active_pokemon, battle, UseSpecificCalc = True) * move.accuracy)
             return self.create_order(best_move, dynamax= dynamax, terastallize= RandomTerastallize(battle))
 
         # If no attack is available, a switch will be made
@@ -105,9 +106,10 @@ def ConsiderStatusMove(attacker, defender, battle, randdata):
     # In this function we know
     # We don't want to swap
     # We can't knock them out
+    possiblemoves = GetMoves(attacker, battle, randdata).values()
 
     statusMoves = []
-    for move in battle.available_moves:
+    for move in possiblemoves:
         if move.category == MoveCategory.STATUS:
             statusMoves.append(move)
 
@@ -121,6 +123,7 @@ def ConsiderStatusMove(attacker, defender, battle, randdata):
             hpestimate -= 50
             hpestimate -= DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle)
             if hpestimate > 0:
+                print(f"{battle.battle_tag}: bellydrum")
                 return move
         if move.id.startswith("shellsmash"):
             # Shell smash if we live 2 attacks or live 1 and then can 1 shot after
@@ -131,6 +134,7 @@ def ConsiderStatusMove(attacker, defender, battle, randdata):
             hpestimate = attacker.current_hp_fraction * 100
             hpestimate -= (DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle)) * 2
             if hpestimate > 0:
+                print(f"{battle.battle_tag}: shellsmash")
                 return move
             
             #Check 1 attack + one shot after
@@ -138,6 +142,7 @@ def ConsiderStatusMove(attacker, defender, battle, randdata):
             hpestimate -= (DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle))
             if hpestimate > 0:
                 if HasGuaranteedKO(attacker, defender, battle, 2):
+                    print(f"{battle.battle_tag}: shellsmash")
                     return move
 
     return None

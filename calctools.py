@@ -227,9 +227,30 @@ def GetPokemonStat(pokemon, statName, battle):
             return maxhp
 
     if(pokemon.stats == None or pokemon.stats[statName] == None):
-        return CalcUnknowStat(pokemon, statName, battle)
+        Stat = CalcUnknowStat(pokemon, statName, battle)
     else:
-        return pokemon.stats[statName]
+        Stat = pokemon.stats[statName]
+
+    #With Boosts
+    Stat *= BoostMultiplier(pokemon, statName)
+
+    # Speed mods
+    if(statName == "spe"):
+        if (Status.PAR == pokemon.status):
+            Stat *= .5
+        if pokemon.item == "choicescarf":
+            Stat *= 1.5
+        if pokemon.ability == "unburden":
+            if pokemon.item == None:
+                Stat *= 1.5
+    
+    # Sandstorm rock spd boost
+    if statName == "spd":
+        if Weather.SANDSTORM == battle.weather:
+            if PokemonType.ROCK in [pokemon.type_1, pokemon.type_2]:
+                Stat *= 1.5
+
+    return Stat
 
 def CalcUnknowStat(enemy, statName, battle):
     # Assumes Random Format
@@ -239,19 +260,6 @@ def CalcUnknowStat(enemy, statName, battle):
     # Base Stat
     enemyStat = (math.floor(0.01 * (2 * Base + 31 + math.floor(0.25 * 85)) * Level) + 5) * 1
 
-    #With Boosts
-    enemyStat *= BoostMultiplier(enemy, statName)
-
-    # Para for speed
-    if(statName == "spe"):
-        if (Status.PAR == enemy.status):
-            enemyStat *= .5
-    
-    # Sandstorm rock spd boost
-    if statName == "spd":
-        if Weather.SANDSTORM == battle.weather:
-            if PokemonType.ROCK in [enemy.type_1, enemy.type_2]:
-                enemyStat *= 1.5
 
     return enemyStat
 
@@ -396,6 +404,7 @@ def WeatherMultiplier(weather, move):
         if move.type == PokemonType.FIRE:
             return 1.5
         elif move.type == PokemonType.WATER:
+            print("Water weakned")
             return .5
     elif weather == Weather.RAINDANCE:
         if move.type == PokemonType.WATER:
@@ -424,7 +433,11 @@ def GetMoves(pokemon, battle, randomsets):
         possibleMoves = battle.available_moves
         attackerMoves = {}
         for move in possibleMoves:
-            attackerMoves[move.id] = move
+            if pokemon.is_dynamaxed:
+                move = move.dynamaxed
+                attackerMoves[move.id] = move
+            else:
+                attackerMoves[move.id] = move
         return attackerMoves
 
     # If server gives us all moves then we are done
