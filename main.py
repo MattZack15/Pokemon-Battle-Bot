@@ -14,7 +14,7 @@ from teams import randomteam, clickdamageteam, swappingteam, jteam, herosteam
 
 async def main():
     # "Online" "Sims"
-    mode = "Sims"
+    mode = "Online"
     
     if mode == "Online":
         concurrent_battles = 1
@@ -33,8 +33,8 @@ async def main():
     BetterBot = better_calc_bot_2.BetterCalc2(
         battle_format="gen8randombattle",
         max_concurrent_battles= concurrent_battles,
-        #account_configuration=AccountConfiguration("RoboDougRoll", "destroyhumans"),
-        #server_configuration=ShowdownServerConfiguration,
+        account_configuration=AccountConfiguration("RoboDougRoll", "destroyhumans"),
+        server_configuration=ShowdownServerConfiguration,
         #team= jteam,
     )
 
@@ -42,13 +42,13 @@ async def main():
 
 
     if mode == "Sims":
-        testCount = 5000
+        testCount = 10000
         await BetterBot.battle_against(Bot1, n_battles=testCount)
 
     
-    data = CollectData(BetterBot)
-    data = CollectData(BetterBot, data)
-    PrintData(data)
+    #data = CollectData(BetterBot)
+    #data = CollectData(BetterBot, data)
+    #PrintData(data, "./RandWinrates.txt")
     
 
     # Sending challenges to 'your_username'
@@ -62,7 +62,7 @@ async def main():
 
     if(mode == "Online"):
         #Number of Requested games
-        TotalGames = 10
+        TotalGames = 1
         GamesCount = 0
         while(GamesCount < TotalGames):
             await BetterBot.ladder(1)
@@ -75,7 +75,18 @@ async def main():
                     BetterBot.n_won_battles, GamesCount, BetterBot.n_won_battles/GamesCount * 100
                 )
             )
-            print(f"Rating: {list(BetterBot.battles.items())[-1][1].rating}")
+            newrating = list(BetterBot.battles.items())[-1][1].rating
+            f = open("./highest_rating.txt", "r")
+            oldrating = int(f.readline())
+            f.close()
+            
+            if newrating > oldrating:
+                f = open("./highest_rating.txt", "w")
+                f.writelines(str(newrating))
+                f.close()
+
+            
+            print(f"Rating: {newrating}")
 
     
     # Playing 5 games on the ladder
@@ -129,7 +140,7 @@ def CollectData(bot, dict = {}):
 
     return mons
 
-def PrintData(dict):
+def PrintData(dict, filename):
     winrates = {}
     for pokemon in dict:
         winrate = round((dict[pokemon][0] / (dict[pokemon][0] + dict[pokemon][1])) * 100, 1)
@@ -137,7 +148,7 @@ def PrintData(dict):
 
     winrates = sorted(winrates.items(), key=lambda x:x[1], reverse= True)
 
-    with open("./RandWinrates.txt", 'w') as file:
+    with open(filename, 'w') as file:
         # Write each line to the file
         for data in winrates:
             line = f"{data[0]}: {data[1]}%\n"

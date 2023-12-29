@@ -263,11 +263,46 @@ def CalcUnknowStat(enemy, statName, battle):
 
     return enemyStat
 
-def MoveBasePower(move, attacker):
+def MoveBasePower(move, attacker, defender):
     basepower = move.base_power
     
     if move.id.startswith("waterspout"):
         return basepower * attacker.current_hp_fraction
+    if move.id in ["heavyslam", "heatcrash"]:
+        if defender.is_dynamaxed:
+            return 0
+        weight_ratio = (defender.weight / attacker.weight) * 100
+
+        if weight_ratio > 50:
+            power = 40
+        elif 33.35 <= weight_ratio <= 50:
+            power = 60
+        elif 25.01 <= weight_ratio <= 33.34:
+            power = 80
+        elif 20.01 <= weight_ratio <= 25:
+            power = 100
+        else:
+            power = 120
+        return power
+    if move.id.startswith("grassknot"):
+        target_weight_kg = defender.weight
+        if target_weight_kg <= 9.9:
+            power = 20
+        elif 10.0 <= target_weight_kg <= 24.9:
+            power = 40
+        elif 25.0 <= target_weight_kg <= 49.9:
+            power = 60
+        elif 50.0 <= target_weight_kg <= 99.9:
+            power = 80
+        elif 100.0 <= target_weight_kg <= 199.9:
+            power = 100
+        else:
+            power = 120
+
+        return power
+
+
+        
 
     return basepower
 
