@@ -243,6 +243,10 @@ def GetPokemonStat(pokemon, statName, battle):
         if pokemon.ability == "unburden":
             if pokemon.item == None:
                 Stat *= 1.5
+
+    if pokemon.item == "eviolite":
+        if statName in ["def", "spd"]:
+            Stat *= 1.5
     
     # Sandstorm rock spd boost
     if statName == "spd":
@@ -308,7 +312,7 @@ def MoveBasePower(move, attacker, defender):
 
 def CalcBaseDamage(move, attacker, defender, battle):
     Level = attacker.level
-    Power = MoveBasePower(move, attacker)
+    Power = MoveBasePower(move, attacker, defender)
     A = GetEffectiveAttackStat(move, attacker, defender, battle)
     D = GetEffectiveDefenceStat(move, defender, battle)
 
@@ -375,10 +379,14 @@ def MoveEffectMultiplier(move, attacker, defender):
     movename = move.id
 
     if movename.startswith("knockoff"):
-        if(defender.item == None):
-            return 1
-        else:
+        if(defender.item != None):
             return 1.5
+    if movename.startswith("facade"):
+        if attacker.status != None:
+            if Status.BRN == attacker.status or Status.PSN == attacker.status or Status.PAR == attacker.status:
+                return 2
+        
+    
     return 1
 
 def AttackerIsGrounded(attacker):
