@@ -3,6 +3,7 @@ from poke_env.player.battle_order import BattleOrder
 from poke_env.player.player import Player
 from poke_env.environment.move_category import MoveCategory
 from poke_env.environment.pokemon_type import PokemonType
+import movetraits
 import random
 import math
 from calctools import CalcDamage, GetPokemonStat, GetMoves
@@ -19,7 +20,7 @@ from poke_env.ps_client.server_configuration import (
 from poke_env.teambuilder.constant_teambuilder import ConstantTeambuilder
 from poke_env.teambuilder.teambuilder import Teambuilder
 
-class BetterCalc2(Player):
+class ZebakBot(Player):
     def __init__(
         self,
         account_configuration: Optional[AccountConfiguration] = None,
@@ -144,6 +145,30 @@ def ConsiderStatusMove(attacker, defender, battle, randdata):
                 if HasGuaranteedKO(attacker, defender, battle, 2):
                     #print(f"{battle.battle_tag}: shellsmash")
                     return move
+        if movetraits.IsRecoverMove(move):
+            # We only want to heal if we get full value from heal
+            # And it wont cause us to start losing the matchup
+            hpestimate = attacker.current_hp_fraction * 100
+            bestenemydamage = (DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle))
+
+            if bestenemydamage > 40:
+                # Case if it would cause us to start losing matchup
+                continue
+
+            if IsFaster(attacker, defender, battle):
+                # We faster
+                if hpestimate < 50:
+                    print(battle.battle_tag)
+                    return move
+            else: 
+                # We slower
+                if hpestimate - bestenemydamage < 50:
+                    print(battle.battle_tag)
+                    return move
+
+
+
+
 
     return None
 
