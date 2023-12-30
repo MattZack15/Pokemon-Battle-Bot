@@ -387,6 +387,9 @@ def EffectivenessMultiplier(move, defender):
 def MoveEffectMultiplier(move, attacker, defender):
     movename = move.id
 
+    if attacker.is_dynamaxed:
+        return 1
+
     if movename.startswith("knockoff"):
         if(defender.item != None and defender.item != ""):
             return 1.5
