@@ -14,12 +14,12 @@ from teams import randomteam, clickdamageteam, swappingteam, jteam, herosteam
 
 async def main():
     # "Online" "Sims"
-    mode = "Online"
+    mode = "Sims"
     
     if mode == "Online":
         concurrent_battles = 1
     elif mode == "Sims":
-        concurrent_battles = 4
+        concurrent_battles = 1
     
     # We create a random player
     if(mode == "Sims"):
@@ -33,8 +33,8 @@ async def main():
     BetterBot = better_calc_bot_2.BetterCalc2(
         battle_format="gen8randombattle",
         max_concurrent_battles= concurrent_battles,
-        account_configuration=AccountConfiguration("RoboDougRoll", "destroyhumans"),
-        server_configuration=ShowdownServerConfiguration,
+        #account_configuration=AccountConfiguration("RoboDougRoll", "destroyhumans"),
+        #server_configuration=ShowdownServerConfiguration,
         #team= jteam,
     )
 
@@ -42,7 +42,7 @@ async def main():
 
 
     if mode == "Sims":
-        testCount = 10000
+        testCount = 1000
         await BetterBot.battle_against(Bot1, n_battles=testCount)
 
     
@@ -62,7 +62,7 @@ async def main():
 
     if(mode == "Online"):
         #Number of Requested games
-        TotalGames = 1
+        TotalGames = 10
         GamesCount = 0
         while(GamesCount < TotalGames):
             await BetterBot.ladder(1)
@@ -125,8 +125,13 @@ def CollectData(bot, dict = {}):
                 pokemonName = "mimikyu"
             elif pokemonName.startswith("eiscue"):
                 pokemonName = "eiscue"
-            
-            
+            elif pokemonName.startswith("gastrodon"):
+                pokemonName = "gastrodon"
+            elif pokemonName.startswith("wishiwashi"):
+                pokemonName = "wishiwashischool"
+            elif pokemonName.startswith("zygardecomplete"):
+                pokemonName = "zygarde"
+
             if(pokemonName in mons):
                 if won:
                     mons[pokemonName][0] = mons[pokemonName][0] + 1

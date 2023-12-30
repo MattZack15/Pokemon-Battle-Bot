@@ -117,7 +117,7 @@ def NaiveDamageMultiplier(move, attacker, defender, battle):
             mul *= BoostMultiplier(attacker, "atk")
 
     #Weather
-    mul *= WeatherMultiplier(battle.weather, move)
+    mul *= WeatherMultiplier(battle, move)
 
     #Abilities
     mul *= AbilityMultiplierDefender(move, defender)
@@ -350,7 +350,7 @@ def CalcDamageMultiplier(move, attacker, defender, battle):
     mul *= EffectivenessMultiplier(move, defender)
 
     # Weather
-    mul *= WeatherMultiplier(battle.weather, move)
+    mul *= WeatherMultiplier(battle, move)
 
     # Terrain
     mul *= TerrainMultiplier(battle, move, attacker, defender)
@@ -379,13 +379,15 @@ def MoveEffectMultiplier(move, attacker, defender):
     movename = move.id
 
     if movename.startswith("knockoff"):
-        if(defender.item != None):
+        if(defender.item != None and defender.item != ""):
             return 1.5
     if movename.startswith("facade"):
         if attacker.status != None:
-            if Status.BRN == attacker.status or Status.PSN == attacker.status or Status.PAR == attacker.status:
+            if attacker.status in [Status.BRN, Status.PSN, Status.PAR]:
                 return 2
-        
+    if movename.startswith("acrobatics"):
+        if attacker.item == None or attacker.item == "":
+            return 2
     
     return 1
 
@@ -437,17 +439,23 @@ def TerrainMultiplier(battle, move, attacker, defender):
 
 
 
-def WeatherMultiplier(weather, move):
+def WeatherMultiplier(battle, move):
+    weather = battle.weather
+    
     # Takes in weather and move
     # Returns a float damage Multiplier for that move
-
-    if weather == None:
+    
+    if weather == None or len(weather) == 0:
         return 1
-    elif weather == Weather.SUNNYDAY:
+    if(len(weather) > 1):
+        print(weather)
+    
+    weather = list(weather.keys())[0]
+
+    if weather == Weather.SUNNYDAY:
         if move.type == PokemonType.FIRE:
             return 1.5
         elif move.type == PokemonType.WATER:
-            print("Water weakned")
             return .5
     elif weather == Weather.RAINDANCE:
         if move.type == PokemonType.WATER:
@@ -464,8 +472,8 @@ def WeatherMultiplier(weather, move):
             return 1.5
         elif move.type == PokemonType.FIRE:
             return 0
-    else:
-        return 1
+
+    return 1
     
 
 
@@ -495,11 +503,18 @@ def GetMoves(pokemon, battle, randomsets):
             pokemonName = "mimikyu"
         elif pokemonName.startswith("eiscue"):
             pokemonName = "eiscue"
+        elif pokemonName.startswith("gastrodon"):
+            pokemonName = "gastrodon"
+        elif pokemonName.startswith("wishiwashi"):
+            pokemonName = "wishiwashischool"
+        elif pokemonName.startswith("zygardecomplete"):
+            pokemonName = "zygarde"
         
         #Check if name is in List
         if(not pokemonName in randomsets.keys()):
             #if not check gmax version
             if(not pokemonName+"gmax" in randomsets.keys()):
+                print(f"{pokemonName} has no move entries")
                 return pokemon.moves
             else:
                 pokemonName += "gmax"
