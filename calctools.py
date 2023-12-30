@@ -239,7 +239,8 @@ def GetPokemonStat(pokemon, statName, battle):
         if (Status.PAR == pokemon.status):
             Stat *= .5
         if pokemon.item == "choicescarf":
-            Stat *= 1.5
+            if not pokemon.is_dynamaxed:
+                Stat *= 1.5
         if pokemon.ability == "unburden":
             if pokemon.item == None:
                 Stat *= 1.5
@@ -328,11 +329,20 @@ def ItemMultiplier(move, attacker, defender):
         
     if (attacker.item == None):
         return 1
-    elif (attacker.item == "lifeorb"):
+    if (attacker.item == "lifeorb"):
         return 1.3
-    elif (attacker.item == "magnet"):
+    if (attacker.item == "magnet"):
         if move.type == PokemonType.ELECTRIC:
             return 1.2
+    
+    # Choice Items
+    if not attacker.is_dynamaxed:
+        if attacker.item == "choiceband":
+            if move.category == MoveCategory.PHYSICAL:
+                return 1.5
+        if attacker.item == "choicespecs":
+            if move.category == MoveCategory.SPECIAL:
+                return 1.5
 
     return 1
 
