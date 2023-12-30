@@ -265,7 +265,6 @@ def CalcUnknowStat(enemy, statName, battle):
     # Base Stat
     enemyStat = (math.floor(0.01 * (2 * Base + 31 + math.floor(0.25 * 85)) * Level) + 5) * 1
 
-
     return enemyStat
 
 def MoveBasePower(move, attacker, defender):
@@ -401,6 +400,16 @@ def MoveEffectMultiplier(move, attacker, defender):
     
     return 1
 
+def HasStatus(pokemon):
+    # If the pokemon has an unoverridable status return True
+    # Ignores Freeze
+    if pokemon.status == None:
+        return False
+    if pokemon.status in [Status.BRN, Status.PSN, Status.PAR, Status.TOX, Status.SLP]:
+        return True
+        
+    return False
+
 def AttackerIsGrounded(attacker):
     if(attacker.item == "airballoon"):
         return False
@@ -485,7 +494,19 @@ def WeatherMultiplier(battle, move):
 
     return 1
     
+def DamageToHPPercent(damage, Defender, battle):
+    targetMaxHp = GetPokemonStat(Defender, "hp", battle)
+    percent = round((damage / targetMaxHp) * 100, 1)
+    return percent
 
+def IsFaster(pokemon1, pokemon2, battle):
+    # Returns True if pokemon1 is faster than pokemon2
+    # False otherwise
+    
+    if GetPokemonStat(pokemon1, "spe", battle) > GetPokemonStat(pokemon2, "spe", battle):
+        return True
+    else:
+        return False
 
 def GetMoves(pokemon, battle, randomsets):
     # -> Dict[str, Move]

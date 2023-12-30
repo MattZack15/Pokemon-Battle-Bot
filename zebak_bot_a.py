@@ -158,12 +158,10 @@ def ConsiderStatusMove(attacker, defender, battle, randdata):
             if IsFaster(attacker, defender, battle):
                 # We faster
                 if hpestimate < 50:
-                    print(battle.battle_tag)
                     return move
             else: 
                 # We slower
                 if hpestimate - bestenemydamage < 50:
-                    print(battle.battle_tag)
                     return move
 
 
