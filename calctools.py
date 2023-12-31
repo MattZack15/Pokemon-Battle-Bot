@@ -304,6 +304,13 @@ def MoveBasePower(move, attacker, defender):
             power = 120
 
         return power
+    if move.id.startswith("storedpower"):
+        boostcount = 1
+        for stat in attacker.boosts:
+            boost = attacker.boosts[stat]
+            if boost > 0:
+                boostcount += boost
+        return 20 * boostcount
 
 
         
