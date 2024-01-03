@@ -32,13 +32,6 @@ def CalcDamage(move, attacker, defender, battle, UseSpecificCalc = False):
             if(attacker.ability == "skilllink"):
                 expected_hits = 5
         Damage *= expected_hits
-        # Expected Value
-        #Damage *= move.accuracy
-        # Find what percent that will be
-        hpStat = GetPokemonStat(defender, "hp", battle)
-        percentDam = round(Damage/hpStat * 100)
-        #print(f"Attacker: {attacker.species} Defender: {defender.species}")
-        #print(f"{move.id} will deal: {round(percentDam*.85)} - {percentDam}")
         
         #Special Cases Where calc is completly different
         if move.id.startswith("seismictoss") or move.id.startswith("nightshade"):
@@ -409,6 +402,11 @@ def EffectivenessMultiplier(move, defender, attacker):
     
     if move.id.startswith("multiattack"):
         return defender.damage_multiplier(attacker.type_1)
+    
+    if attacker.ability == "scrappy":
+        if move.type in [PokemonType.NORMAL, PokemonType.FIGHTING]:
+            if PokemonType.GHOST in [defender.type_1, defender.type_2]:
+                return 1
 
     return defender.damage_multiplier(move)
 
@@ -430,6 +428,9 @@ def MoveEffectMultiplier(move, attacker, defender):
     if movename.startswith("acrobatics"):
         if attacker.item == None or attacker.item == "":
             return 2
+    if movename.startswith("firstimpression") or movename.startswith("fakeout"):
+        if not attacker.first_turn:
+            return 0
     
     return 1
 
