@@ -120,7 +120,7 @@ def NaiveDamageMultiplier(move, attacker, defender, battle):
     mul *= WeatherMultiplier(battle, move)
 
     #Abilities
-    mul *= AbilityMultiplierDefender(move, defender)
+    mul *= AbilityMultiplierDefender(move, defender, attacker)
     mul *= AbilityMultiplierAttacker(move, attacker)
 
     return mul
@@ -151,7 +151,11 @@ def AbilityMultiplierAttacker(move, attacker):
     return 1
 
 
-def AbilityMultiplierDefender(move, defender):
+def AbilityMultiplierDefender(move, defender, attacker):
+    if attacker.ability == "moldbreaker":
+        # Ignore ability - ability
+        return 1
+    
     if(defender.ability is None):
         return 1
     
@@ -372,7 +376,7 @@ def CalcDamageMultiplier(move, attacker, defender, battle):
     mul *= TerrainMultiplier(battle, move, attacker, defender)
 
     #Abilities
-    mul *= AbilityMultiplierDefender(move, defender)
+    mul *= AbilityMultiplierDefender(move, defender, attacker)
     mul *= AbilityMultiplierAttacker(move, attacker)
 
     # Move Effects
