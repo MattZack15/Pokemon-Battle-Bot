@@ -1,5 +1,8 @@
 from calctools import CalcDamage, GetMoves, HasStatus, DamageToHPPercent, IsFaster
 from poke_env.environment.status import Status
+from ConsiderStatusMove import ConsiderStatusMove
+from BestDamageMove import FindStrongestMoveDamage
+from movetraits import IsRecoverMove
 import copy
 
 def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
@@ -8,8 +11,12 @@ def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
     # -100 means we get KO'ed without dealing any damage
     # Assumes Full HP
 
+
     Ally = copy.copy(Ally)
+    Ally.boosts = copy.copy(Ally.boosts)
+
     Enemy = copy.copy(Enemy)
+    Enemy.boosts = copy.copy(Enemy.boosts)
 
     # Standardize Values
     Ally.set_hp_status(f"{round(Ally.current_hp_fraction * 100)}/100")
@@ -29,24 +36,31 @@ def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
 
     # Cost of swapping in
     TakeDamage(Ally, swapincost)
-
-    AllyBestDamage = DamageToHPPercent(FindStrongestMoveDamage(Ally, Enemy, battle, randdata), Enemy, battle)
-    EnemyBestDamage = DamageToHPPercent(FindStrongestMoveDamage(Enemy, Ally, battle, randdata), Ally, battle)
     
-    maxSimCount = 20
+    maxSimCount = 35
     while not IsDead(Ally) and not IsDead(Enemy) and maxSimCount > 0:
+        
+        # Choose Moves for this round
+        AllyBestDamage = DamageToHPPercent(FindStrongestMoveDamage(Ally, Enemy, battle, randdata), Enemy, battle)
+        EnemyBestDamage = DamageToHPPercent(FindStrongestMoveDamage(Enemy, Ally, battle, randdata), Ally, battle)
+
+        AllyStatusMove = ConsiderStatusMove(Ally, Enemy, battle, randdata)
+        EnemyStatusMove = ConsiderStatusMove(Enemy, Ally, battle, randdata)
+
+        
         if IsFaster(Ally, Enemy, battle):
-            TakeDamage(Enemy, AllyBestDamage)
+           # if Ally Move first
+            TakeTurn(Ally, Enemy, AllyBestDamage, AllyStatusMove)
             if IsDead(Enemy):
                 break
-            TakeDamage(Ally, EnemyBestDamage)
+            TakeTurn(Enemy, Ally, EnemyBestDamage, EnemyStatusMove)
             if IsDead(Ally):
                 break
         else:
-            TakeDamage(Ally, EnemyBestDamage)
+            TakeTurn(Enemy, Ally, EnemyBestDamage, EnemyStatusMove)
             if IsDead(Ally):
                 break
-            TakeDamage(Enemy, AllyBestDamage)
+            TakeTurn(Ally, Enemy, AllyBestDamage, AllyStatusMove)
             if IsDead(Enemy):
                 break
 
@@ -63,7 +77,9 @@ def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
 
         
     if(maxSimCount <= 0):
-        print("Max sims reached")
+        #print("Max sims reached")
+        #print(f"{Ally.species}, {GetMoves(Ally, battle, randdata)}")
+        #print(f"{Enemy.species}, {GetMoves(Enemy, battle, randdata)}")
         # Pokemon cant hit eachother return even
         return 0
 
@@ -142,3 +158,31 @@ def IsDead(pokemon):
     if pokemon.current_hp_fraction <= 0:
         return True
     return False
+
+def SimStatusMove(attacker, defender, statusmove):
+    if IsRecoverMove(statusmove):
+        TakeDamage(attacker, -50)
+        return
+    if statusmove.id == "toxic":
+        defender.set_hp_status(f"{round(defender.current_hp_fraction*100)}/100 TOX")
+        if defender.current_hp_fraction * 100 > 100:
+            print("Error Setting HP")
+            print(defender.current_hp_fraction * 100)
+        return
+    if statusmove.id == "bellydrum":
+        TakeDamage(attacker, 50)
+        attacker.boost("atk", 6)
+    if statusmove.id == "shellsmash":
+        attacker.boost("atk", 2)
+        attacker.boost("spa", 2)
+        attacker.boost("spe", 2)
+        attacker.boost("def", -1)
+        attacker.boost("spd", -1)
+
+
+def TakeTurn(attacker, defender, bestdamage, statusmove):
+
+    if statusmove != None:
+        SimStatusMove(attacker, defender, statusmove)
+    else:
+        TakeDamage(defender, bestdamage)

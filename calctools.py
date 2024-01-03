@@ -148,6 +148,16 @@ def AbilityMultiplierAttacker(move, attacker):
     if attacker.ability == "sheerforce":
         if HasSecondaryEffect(move):
             return 1.3
+        
+    if attacker.ability == "technician":
+        if move.base_power <= 60:
+            return 1.5
+        
+    if attacker.ability == "guts":
+        if attacker.status != None:
+            if attacker.status in [Status.BRN, Status.PSN, Status.PAR, Status.TOX]:
+                return 1.5
+    
     return 1
 
 
@@ -189,6 +199,12 @@ def AbilityMultiplierDefender(move, defender, attacker):
     if defender.ability == "windrider":
         if IsWindMove(move):
             return 0
+    if defender.ability == "thickfat":
+        if move.type in [PokemonType.FIRE, PokemonType.ICE]:
+            return .5
+    if defender.ability == "icescales":
+        if move.category == MoveCategory.SPECIAL:
+            return .5
         
     return 1
 
@@ -367,7 +383,7 @@ def CalcDamageMultiplier(move, attacker, defender, battle):
     mul *= STABMultiplier(move, attacker)
     
     # Effectiveness
-    mul *= EffectivenessMultiplier(move, defender)
+    mul *= EffectivenessMultiplier(move, defender, attacker)
 
     # Weather
     mul *= WeatherMultiplier(battle, move)
@@ -386,11 +402,14 @@ def CalcDamageMultiplier(move, attacker, defender, battle):
     mul *= ItemMultiplier(move, attacker, defender)
     return mul
 
-def EffectivenessMultiplier(move, defender):
+def EffectivenessMultiplier(move, defender, attacker):
     if move.id.startswith("freezedry"):
         if(defender.type_1 == PokemonType.WATER or defender.type_2 == PokemonType.WATER):
             return defender.damage_multiplier(move) * 4
     
+    if move.id.startswith("multiattack"):
+        return defender.damage_multiplier(attacker.type_1)
+
     return defender.damage_multiplier(move)
 
 
@@ -406,7 +425,7 @@ def MoveEffectMultiplier(move, attacker, defender):
             return 1.5
     if movename.startswith("facade"):
         if attacker.status != None:
-            if attacker.status in [Status.BRN, Status.PSN, Status.PAR]:
+            if attacker.status in [Status.BRN, Status.PSN, Status.PAR, Status.TOX]:
                 return 2
     if movename.startswith("acrobatics"):
         if attacker.item == None or attacker.item == "":

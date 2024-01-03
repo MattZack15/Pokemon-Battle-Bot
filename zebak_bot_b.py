@@ -3,10 +3,15 @@ from poke_env.player.battle_order import BattleOrder
 from poke_env.player.player import Player
 from poke_env.environment.move_category import MoveCategory
 from poke_env.environment.pokemon_type import PokemonType
+from poke_env.environment.status import Status
+from ConsiderStatusMove import ConsiderStatusMove
+from BattleSim import SimBattle, FindStrongestMoveDamage
+from ConsiderStatusMove import ConsiderStatusMove
+from BestDamageMove import HasGuaranteedKO, BestKOMove, FindStrongestMoveDamage
 import movetraits
 import random
 import math
-from calctools import CalcDamage, GetPokemonStat, GetMoves
+from calctools import CalcDamage, GetPokemonStat, GetMoves, HasStatus, DamageToHPPercent, IsFaster
 import json
 from typing import Optional, Union
 from poke_env.ps_client.account_configuration import (
@@ -102,135 +107,10 @@ class ZebakBot(Player):
     
     def teampreview(self, battle):
         return "/team 123456"
-    
-def ConsiderStatusMove(attacker, defender, battle, randdata):
-    # In this function we know
-    # We don't want to swap
-    # We can't knock them out
-    possiblemoves = GetMoves(attacker, battle, randdata).values()
-
-    statusMoves = []
-    for move in possiblemoves:
-        if move.category == MoveCategory.STATUS:
-            statusMoves.append(move)
-
-    for move in statusMoves:
-        if move.id.startswith("bellydrum"):
-            # Belly drum if it wont get us knocked out this turn and we can use boost
-            if attacker.boosts["atk"] > 1:
-                continue
-            
-            hpestimate = attacker.current_hp_fraction * 100
-            hpestimate -= 50
-            hpestimate -= DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle)
-            if hpestimate > 0:
-                #print(f"{battle.battle_tag}: bellydrum")
-                return move
-        if move.id.startswith("shellsmash"):
-            # Shell smash if we live 2 attacks or live 1 and then can 1 shot after
-            if attacker.boosts["atk"] > 1 or attacker.boosts["spa"] > 1:
-                continue
-
-            # Check live 2 attacks
-            hpestimate = attacker.current_hp_fraction * 100
-            hpestimate -= (DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle)) * 2
-            if hpestimate > 0:
-                #print(f"{battle.battle_tag}: shellsmash")
-                return move
-            
-            #Check 1 attack + one shot after
-            hpestimate = attacker.current_hp_fraction * 100
-            hpestimate -= (DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle))
-            if hpestimate > 0:
-                if HasGuaranteedKO(attacker, defender, battle, 2):
-                    #print(f"{battle.battle_tag}: shellsmash")
-                    return move
-        if movetraits.IsRecoverMove(move):
-            # We only want to heal if we get full value from heal
-            # And it wont cause us to start losing the matchup
-            hpestimate = attacker.current_hp_fraction * 100
-            bestenemydamage = (DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle))
-
-            if bestenemydamage > 40:
-                # Case if it would cause us to start losing matchup
-                continue
-
-            if IsFaster(attacker, defender, battle):
-                # We faster
-                if hpestimate < 50:
-                    print(battle.battle_tag)
-                    return move
-            else: 
-                # We slower
-                if hpestimate - bestenemydamage < 50:
-                    print(battle.battle_tag)
-                    return move
 
 
 
-
-
-    return None
-
-    
-def FindStrongestMoveDamage(Attacker, Defender, battle, randdata):
-    # Returns EV of damage of strongest move
-
-    attackerMoves = GetMoves(Attacker, battle, randdata)
-    
-    if(len(attackerMoves) == 0):
-        return 0
-    bestDamage = -1
-    for key in attackerMoves.keys():
-        move = attackerMoves[key]
-        Damage = CalcDamage(move, Attacker, Defender, battle, UseSpecificCalc = True)
-        # Exspected Value
-        Damage *= move.accuracy
-        # Damage Roll
-        Damage *= .925
-
-        if(Damage > bestDamage):
-            bestDamage = Damage
-    
-    return bestDamage
-
-def BestKOMove(attacker, defender, battle):
-    hpStat = GetPokemonStat(defender, "hp", battle)
-    KOMoves = {}
-    for move in battle.available_moves:
-       Damage = CalcDamage(move, attacker, defender, battle, True)
-       percentDam = math.floor(Damage/hpStat * 100)
-       #Check Min Roll
-       if(percentDam * .85 > defender.current_hp):
-           accuracy = move.accuracy
-           if accuracy in KOMoves.keys():
-               KOMoves[accuracy].append(move)
-           else:
-               KOMoves[accuracy] = [move]
-
-    highestaccuracy = 0
-    for accuracy in KOMoves.keys():
-        if(accuracy > highestaccuracy):
-            highestaccuracy = accuracy
-
-    # Return a move with highest accuracy that KOs
-    # Random if multiple
-    return KOMoves[highestaccuracy][random.randint(0, len(KOMoves[highestaccuracy]) - 1)]
-           
-
-def HasGuaranteedKO(attacker, defender, battle, guessedDamageMul = 1):
-    hpStat = GetPokemonStat(defender, "hp", battle)
-    
-    for move in battle.available_moves:
-       Damage = CalcDamage(move, attacker, defender, battle, True)
-       percentDam = math.floor(Damage/hpStat * 100)
-
-       percentDam *= guessedDamageMul
-       #Check Min Roll
-       if(percentDam * .85 > defender.current_hp):
-           return True
-       
-    return False
+        
 
 def RandomTerastallize(battle):
         # Becomes more likely the less pokemon we have
@@ -248,111 +128,6 @@ def RandomTerastallize(battle):
         else:
             return False
 
-def EvalTypeDefence(Ally, Enemy):
-    #-10 Terrible Matchup, 0 Even, +10 Goated Matchup
-    
-    # Both Evals are in worst case
-    weaknessEval = 0
-    resistanceEval = 0
-
-    dam = Ally.damage_multiplier(Enemy.type_1)
-    # Damage we take from enemy first type
-    if(dam == 1):
-        pass
-    elif(dam == 2):
-        weaknessEval = -5
-    elif(dam > 2):
-        weaknessEval = -10
-    else:
-        # Resist Type
-        if(dam == .5):
-            resistanceEval = 5
-        elif(dam < .5):
-            resistanceEval = 10
-        
-    if Enemy.type_2:
-
-        dam = Ally.damage_multiplier(Enemy.type_2)
-        if(dam == 1):
-            resistanceEval = 0
-        elif(dam == 2):
-            if(weaknessEval > -5):
-                weaknessEval = -5
-        elif(dam > 2):
-            weaknessEval = -10
-        else:
-            # Resist Type
-            if(dam == .5):
-                if(resistanceEval > 5):
-                    resistanceEval = 5
-            elif(dam < .5):
-                if(resistanceEval >= 10):
-                    resistanceEval = 15
-
-
-    if(weaknessEval < 0):
-        return weaknessEval
-    else:
-        return resistanceEval
-
-def IsFaster(pokemon1, pokemon2, battle):
-    # Returns True if pokemon1 is faster than pokemon2
-    # False otherwise
-    
-    if GetPokemonStat(pokemon1, "spe", battle) > GetPokemonStat(pokemon2, "spe", battle):
-        return True
-    else:
-        return False
-
-
-
-def DamageToHPPercent(damage, Defender, battle):
-    targetMaxHp = GetPokemonStat(Defender, "hp", battle)
-    #print(f"{Defender.species}- HP:{targetMaxHp}")
-    #print(damage)
-    percent = round((damage / targetMaxHp) * 100, 1)
-    #print(percent)
-    return percent
-
-def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
-    # Returns a +/- percent health of pokemon
-    # +100 means we KO Pokemon without taking any damage
-    # -100 means we get KO'ed without dealing any damage
-    # Assumes Full HP
-    
-    AllyStartingHealth = (Ally.current_hp_fraction * 100)
-    EnemyStartingHealth = Enemy.current_hp_fraction * 100
-    
-    AllyCurrentHealth = (Ally.current_hp_fraction * 100) - swapincost
-    EnemyCurrentHealth = Enemy.current_hp_fraction * 100
-
-    AllyBestMove = DamageToHPPercent(FindStrongestMoveDamage(Ally, Enemy, battle, randdata), Enemy, battle)
-    EnemyBestMove = DamageToHPPercent(FindStrongestMoveDamage(Enemy, Ally, battle, randdata), Ally, battle)
-    
-    maxSimCount = 10
-    while AllyCurrentHealth > 0 and EnemyCurrentHealth > 0 and maxSimCount > 0:
-        if IsFaster(Ally, Enemy, battle):
-            EnemyCurrentHealth -= AllyBestMove
-            if EnemyCurrentHealth <= 0:
-                break
-            AllyCurrentHealth -= EnemyBestMove
-        else:
-            AllyCurrentHealth -= EnemyBestMove
-            if AllyCurrentHealth <= 0:
-                break
-            EnemyCurrentHealth -= AllyBestMove
-
-        maxSimCount -= 1
-
-    if(maxSimCount <= 0):
-        # Pokemon cant hit eachother return even
-        return 0
-
-    # Who won?
-    if AllyCurrentHealth <= 0:
-        return -(100 - (EnemyStartingHealth - EnemyCurrentHealth))
-    else:
-        return 100 - (AllyStartingHealth - AllyCurrentHealth)
 
 def ShouldSwap(battle, randdata):
     # We go thorugh all pokemon and see who has the best matchup
