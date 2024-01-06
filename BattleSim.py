@@ -1,8 +1,9 @@
-from calctools import CalcDamage, GetMoves, HasStatus, DamageToHPPercent, IsFaster
+from calctools import CalcDamage, GetMoves, HasStatus, DamageToHPPercent, IsFaster, GetPokemonStat
 from poke_env.environment.status import Status
 from ConsiderStatusMove import ConsiderStatusMove
 from BestDamageMove import FindStrongestMoveDamage
 from movetraits import IsRecoverMove
+import math
 import copy
 
 def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
@@ -19,11 +20,14 @@ def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
     Enemy.boosts = copy.copy(Enemy.boosts)
 
     # Standardize Values
-    Ally.set_hp_status(f"{round(Ally.current_hp_fraction * 100)}/100")
+    #Ally.set_hp_status(f"{round(Ally.current_hp_fraction * 100)}/100")
+    EnemyMaxHP = GetPokemonStat(Enemy, "hp", battle)
+    Enemy.set_hp_status(f"{round(Enemy.current_hp_fraction * EnemyMaxHP)}/{EnemyMaxHP}")
 
 
-    AllyStartingHealth = (Ally.current_hp_fraction * 100)
-    EnemyStartingHealth = Enemy.current_hp_fraction * 100
+
+    AllyStartingHealth = Ally.current_hp
+    EnemyStartingHealth = Enemy.current_hp
 
     
     allytoxiccount = 1
@@ -41,8 +45,8 @@ def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
     while not IsDead(Ally) and not IsDead(Enemy) and maxSimCount > 0:
         
         # Choose Moves for this round
-        AllyBestDamage = DamageToHPPercent(FindStrongestMoveDamage(Ally, Enemy, battle, randdata), Enemy, battle)
-        EnemyBestDamage = DamageToHPPercent(FindStrongestMoveDamage(Enemy, Ally, battle, randdata), Ally, battle)
+        AllyBestDamage = FindStrongestMoveDamage(Ally, Enemy, battle, randdata)
+        EnemyBestDamage = FindStrongestMoveDamage(Enemy, Ally, battle, randdata)
 
         AllyStatusMove = ConsiderStatusMove(Ally, Enemy, battle, randdata)
         EnemyStatusMove = ConsiderStatusMove(Enemy, Ally, battle, randdata)
@@ -87,9 +91,9 @@ def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
     if IsDead(Ally) and IsDead(Enemy):
         return 0
     if IsDead(Ally):
-        return -(100 - (EnemyStartingHealth - Enemy.current_hp_fraction * 100))
+        return -(100 - ((EnemyStartingHealth - Enemy.current_hp)/Enemy.max_hp)*100)
     else:
-        return 100 - (AllyStartingHealth - Ally.current_hp_fraction * 100)
+        return 100 - ((AllyStartingHealth - Ally.current_hp)/Ally.max_hp)*100
 
 def ApplyEndOfTurnEffects(pokemon, toxic_counter):
     # Returns the net HP Change after end of turn effects occur
@@ -112,7 +116,11 @@ def ApplyEndOfTurnEffects(pokemon, toxic_counter):
         else:
             change -= (6.25 * toxic_counter)
 
-    # Negate Change to acount for healing
+    # Negate Change to account for healing
+    
+    #Convert Percent hp to true hp
+    change = math.floor(pokemon.max_hp * (change/100))
+
     TakeDamage(pokemon, -change)
 
 def FindStrongestMoveDamage(Attacker, Defender, battle, randdata):
@@ -126,7 +134,7 @@ def FindStrongestMoveDamage(Attacker, Defender, battle, randdata):
     for key in attackerMoves.keys():
         move = attackerMoves[key]
         Damage = CalcDamage(move, Attacker, Defender, battle, UseSpecificCalc = True)
-        # Exspected Value
+        # Expected Value
         Damage *= move.accuracy
         # Damage Roll
         Damage *= .925
@@ -134,25 +142,25 @@ def FindStrongestMoveDamage(Attacker, Defender, battle, randdata):
         if(Damage > bestDamage):
             bestDamage = Damage
     
-    return bestDamage
+    return math.floor(bestDamage)
 
-def TakeDamage(pokemon, damagePercent):
+def TakeDamage(pokemon, damage):
 
+    damage = math.floor(damage)
     # Calculate new HP value
-    currentHP = pokemon.current_hp_fraction * 100
+    currentHP = pokemon.current_hp
     #print(f"currentHP: {currentHP}")
-    #print(f"damagePercent: {damagePercent}")
-    newHP = round(currentHP - damagePercent)
+    #print(f"damage: {damage}")
+    newHP = pokemon.current_hp - damage
     #print(f"newHP: {newHP}")
-    if newHP > 100:
-        newHP = 100
+    if newHP > pokemon.max_hp:
+        newHP = pokemon.max_hp
     elif newHP < 0:
         newHP = 0
     
     # Write to pokemon
-    pokemon.set_hp(f"{newHP}/100")
-
-    #print(pokemon.current_hp_fraction * 100)
+    pokemon.set_hp(f"{newHP}/{pokemon.max_hp}]")
+    #print(f"written HP: {pokemon.current_hp}")
 
 def IsDead(pokemon):
     if pokemon.current_hp_fraction <= 0:
@@ -161,16 +169,17 @@ def IsDead(pokemon):
 
 def SimStatusMove(attacker, defender, statusmove):
     if IsRecoverMove(statusmove):
-        TakeDamage(attacker, -50)
+        # Restore 1/2 hp
+        TakeDamage(attacker, -math.floor(attacker.max_hp*.5))
         return
     if statusmove.id == "toxic":
-        defender.set_hp_status(f"{round(defender.current_hp_fraction*100)}/100 TOX")
+        defender.set_hp_status(f"{defender.current_hp}/{defender.max_hp} TOX")
         if defender.current_hp_fraction * 100 > 100:
             print("Error Setting HP")
             print(defender.current_hp_fraction * 100)
         return
     if statusmove.id == "bellydrum":
-        TakeDamage(attacker, 50)
+        TakeDamage(attacker, math.floor(attacker.max_hp*.5))
         attacker.boost("atk", 6)
     if statusmove.id == "shellsmash":
         attacker.boost("atk", 2)
@@ -181,7 +190,7 @@ def SimStatusMove(attacker, defender, statusmove):
 
 
 def TakeTurn(attacker, defender, bestdamage, statusmove):
-
+    
     if statusmove != None:
         SimStatusMove(attacker, defender, statusmove)
     else:
