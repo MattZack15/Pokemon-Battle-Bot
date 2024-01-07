@@ -11,7 +11,7 @@ from poke_env.data import GenData, to_id_str
 import json
 from poke_env.environment.move import Move
 from poke_env.environment.status import Status
-from movetraits import IsContactMove, HasSecondaryEffect, IsWindMove
+from movetraits import IsContactMove, HasSecondaryEffect, IsWindMove, IsRecoilMove
 
 
 def CalcDamage(move, attacker, defender, battle, UseSpecificCalc = False):
@@ -38,7 +38,7 @@ def CalcDamage(move, attacker, defender, battle, UseSpecificCalc = False):
             if(Damage != 0):
                 return attacker.level
         
-        return Damage
+        return math.floor(Damage)
 
     else:
         #Use general calc
@@ -150,13 +150,17 @@ def AbilityMultiplierAttacker(move, attacker):
         if attacker.status != None:
             if attacker.status in [Status.BRN, Status.PSN, Status.PAR, Status.TOX]:
                 return 1.5
+            
+    if attacker.ability == "reckless":
+        if IsRecoilMove(move):
+            return 1.2
     
     return 1
 
 
 def AbilityMultiplierDefender(move, defender, attacker):
-    if attacker.ability == "moldbreaker":
-        # Ignore ability - ability
+    if attacker.ability in ["moldbreaker", "teravolt", "turboblaze"]:
+        # Ignore ability - abilities
         return 1
     
     if(defender.ability is None):
@@ -430,6 +434,9 @@ def MoveEffectMultiplier(move, attacker, defender):
             return 2
     if movename.startswith("firstimpression") or movename.startswith("fakeout"):
         if not attacker.first_turn:
+            return 0
+    if movename.startswith("poltergeist"):
+        if defender.item == None or defender.item == "":
             return 0
     
     return 1
