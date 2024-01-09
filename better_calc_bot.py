@@ -19,7 +19,7 @@ from poke_env.ps_client.server_configuration import (
 from poke_env.teambuilder.constant_teambuilder import ConstantTeambuilder
 from poke_env.teambuilder.teambuilder import Teambuilder
 
-class BetterCalc(Player):
+class BetterCalc2(Player):
     def __init__(
         self,
         account_configuration: Optional[AccountConfiguration] = None,
@@ -67,22 +67,28 @@ class BetterCalc(Player):
         #Best Move is to take the free knockout
         if(True):
             if battle.available_moves:
-                if IsFaster(battle.active_pokemon, battle.opponent_active_pokemon):
+                if IsFaster(battle.active_pokemon, battle.opponent_active_pokemon, battle):
                     if HasGuaranteedKO(battle.active_pokemon, battle.opponent_active_pokemon, battle):
                         #print(f"Should Pickup Free KO {battle.active_pokemon.species}, {battle.turn}")
                         return self.create_order(BestKOMove(battle.active_pokemon, battle.opponent_active_pokemon, battle))
         
         #Check if want to Swap
         if(battle.available_switches and battle.available_moves):
-            if ShouldSwap2(battle, self.randdata):
+            if ShouldSwap(battle, self.randdata):
                 #Swap
                 BestSwap = BestSwitchIn(battle, self.randdata, freeswap= False)
                 return self.create_order(BestSwap)
         
         # If the player can attack, it will
         if battle.available_moves:
-        
-            best_move = max(battle.available_moves, key=lambda move: CalcDamage(move, battle.active_pokemon, battle.opponent_active_pokemon, battle, UseSpecificCalc = True) * move.accuracy)
+            
+            #Consider Status Moves
+            ChosenStatusMove = ConsiderStatusMove(battle.active_pokemon, battle.opponent_active_pokemon, battle, self.randdata)
+
+            if ChosenStatusMove != None:
+                return self.create_order(ChosenStatusMove, terastallize= RandomTerastallize(battle))
+
+            best_move = max(GetMoves(battle.active_pokemon, battle, self.randdata).values(), key=lambda move: CalcDamage(move, battle.active_pokemon, battle.opponent_active_pokemon, battle, UseSpecificCalc = True) * move.accuracy)
             return self.create_order(best_move, dynamax= dynamax, terastallize= RandomTerastallize(battle))
 
         # If no attack is available, a switch will be made
@@ -96,6 +102,50 @@ class BetterCalc(Player):
     def teampreview(self, battle):
         return "/team 123456"
     
+def ConsiderStatusMove(attacker, defender, battle, randdata):
+    # In this function we know
+    # We don't want to swap
+    # We can't knock them out
+    possiblemoves = GetMoves(attacker, battle, randdata).values()
+
+    statusMoves = []
+    for move in possiblemoves:
+        if move.category == MoveCategory.STATUS:
+            statusMoves.append(move)
+
+    for move in statusMoves:
+        if move.id.startswith("bellydrum"):
+            # Belly drum if it wont get us knocked out this turn and we can use boost
+            if attacker.boosts["atk"] > 1:
+                continue
+            
+            hpestimate = attacker.current_hp_fraction * 100
+            hpestimate -= 50
+            hpestimate -= DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle)
+            if hpestimate > 0:
+                #print(f"{battle.battle_tag}: bellydrum")
+                return move
+        if move.id.startswith("shellsmash"):
+            # Shell smash if we live 2 attacks or live 1 and then can 1 shot after
+            if attacker.boosts["atk"] > 1 or attacker.boosts["spa"] > 1:
+                continue
+
+            # Check live 2 attacks
+            hpestimate = attacker.current_hp_fraction * 100
+            hpestimate -= (DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle)) * 2
+            if hpestimate > 0:
+                #print(f"{battle.battle_tag}: shellsmash")
+                return move
+            
+            #Check 1 attack + one shot after
+            hpestimate = attacker.current_hp_fraction * 100
+            hpestimate -= (DamageToHPPercent(FindStrongestMoveDamage(defender, attacker, battle, randdata), attacker, battle))
+            if hpestimate > 0:
+                if HasGuaranteedKO(attacker, defender, battle, 2):
+                    #print(f"{battle.battle_tag}: shellsmash")
+                    return move
+
+    return None
 
     
 def FindStrongestMoveDamage(Attacker, Defender, battle, randdata):
@@ -120,11 +170,11 @@ def FindStrongestMoveDamage(Attacker, Defender, battle, randdata):
     return bestDamage
 
 def BestKOMove(attacker, defender, battle):
-    hpStat = GetPokemonStat(defender, "hp")
+    hpStat = GetPokemonStat(defender, "hp", battle)
     KOMoves = {}
     for move in battle.available_moves:
        Damage = CalcDamage(move, attacker, defender, battle, True)
-       percentDam = round(Damage/hpStat * 100)
+       percentDam = math.floor(Damage/hpStat * 100)
        #Check Min Roll
        if(percentDam * .85 > defender.current_hp):
            accuracy = move.accuracy
@@ -143,12 +193,14 @@ def BestKOMove(attacker, defender, battle):
     return KOMoves[highestaccuracy][random.randint(0, len(KOMoves[highestaccuracy]) - 1)]
            
 
-def HasGuaranteedKO(attacker, defender, battle):
-    hpStat = GetPokemonStat(defender, "hp")
+def HasGuaranteedKO(attacker, defender, battle, guessedDamageMul = 1):
+    hpStat = GetPokemonStat(defender, "hp", battle)
     
     for move in battle.available_moves:
        Damage = CalcDamage(move, attacker, defender, battle, True)
-       percentDam = round(Damage/hpStat * 100)
+       percentDam = math.floor(Damage/hpStat * 100)
+
+       percentDam *= guessedDamageMul
        #Check Min Roll
        if(percentDam * .85 > defender.current_hp):
            return True
@@ -218,18 +270,19 @@ def EvalTypeDefence(Ally, Enemy):
     else:
         return resistanceEval
 
-def IsFaster(pokemon1, pokemon2):
+def IsFaster(pokemon1, pokemon2, battle):
     # Returns True if pokemon1 is faster than pokemon2
     # False otherwise
-    if GetPokemonStat(pokemon1, "spe") > GetPokemonStat(pokemon2, "spe"):
+    
+    if GetPokemonStat(pokemon1, "spe", battle) > GetPokemonStat(pokemon2, "spe", battle):
         return True
     else:
         return False
 
 
 
-def DamageToHPPercent(damage, Defender):
-    targetMaxHp = GetPokemonStat(Defender, "hp")
+def DamageToHPPercent(damage, Defender, battle):
+    targetMaxHp = GetPokemonStat(Defender, "hp", battle)
     #print(f"{Defender.species}- HP:{targetMaxHp}")
     #print(damage)
     percent = round((damage / targetMaxHp) * 100, 1)
@@ -248,12 +301,12 @@ def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
     AllyCurrentHealth = (Ally.current_hp_fraction * 100) - swapincost
     EnemyCurrentHealth = Enemy.current_hp_fraction * 100
 
-    AllyBestMove = DamageToHPPercent(FindStrongestMoveDamage(Ally, Enemy, battle, randdata), Enemy)
-    EnemyBestMove = DamageToHPPercent(FindStrongestMoveDamage(Enemy, Ally, battle, randdata), Ally)
+    AllyBestMove = DamageToHPPercent(FindStrongestMoveDamage(Ally, Enemy, battle, randdata), Enemy, battle)
+    EnemyBestMove = DamageToHPPercent(FindStrongestMoveDamage(Enemy, Ally, battle, randdata), Ally, battle)
     
     maxSimCount = 10
     while AllyCurrentHealth > 0 and EnemyCurrentHealth > 0 and maxSimCount > 0:
-        if IsFaster(Ally, Enemy):
+        if IsFaster(Ally, Enemy, battle):
             EnemyCurrentHealth -= AllyBestMove
             if EnemyCurrentHealth <= 0:
                 break
@@ -276,7 +329,7 @@ def SimBattle(Ally, Enemy, battle, randdata, swapincost = 0):
     else:
         return 100 - (AllyStartingHealth - AllyCurrentHealth)
 
-def ShouldSwap2(battle, randdata):
+def ShouldSwap(battle, randdata):
     # We go thorugh all pokemon and see who has the best matchup
     # see if its winning
     # Winning is defined by: I kill them before they kill me
@@ -291,12 +344,14 @@ def ShouldSwap2(battle, randdata):
     
     CurrentEval = SimBattle(active_pokemon, Enemy, battle, randdata)
 
+    CurrentEval += StatIncentive(active_pokemon)
+
     #print(f"ActiveMon:{active_pokemon.species} Eval: {CurrentEval}")
 
     TeamEvals = {}
     for pokemon in battle.available_switches:
         #Estimate Swap In Cost
-        swapincost = DamageToHPPercent(FindStrongestMoveDamage(Enemy, pokemon, battle, randdata), pokemon)
+        swapincost = DamageToHPPercent(FindStrongestMoveDamage(Enemy, pokemon, battle, randdata), pokemon, battle)
 
         newEval = SimBattle(pokemon, Enemy, battle, randdata, swapincost)
         
@@ -304,10 +359,24 @@ def ShouldSwap2(battle, randdata):
         TeamEvals[newEval] = pokemon
         
 
-
+    largestEvalIncrease = -1000
     for Eval in TeamEvals.keys():
-        if Eval - CurrentEval > 10:
-            #print(f"Chosen Swap:{TeamEvals[Eval].species} Eval: {Eval}")
+        newEval = Eval - CurrentEval
+
+        if newEval > largestEvalIncrease:
+            largestEvalIncrease = newEval
+
+    if (largestEvalIncrease >= 10):
+        # Roll Chance to just not swap scaling with eval size
+        #Ex if eval is >50 100 to swap
+        # if eval is 10 85% to swap
+        swapChance = (3/8)*largestEvalIncrease + (325/4)
+        
+        # Roll
+        roll = random.randint(1, 100)
+        if(roll > swapChance):
+            return False
+        else:
             return True
     return False
 
@@ -319,7 +388,7 @@ def BestSwitchIn(battle, randdata, freeswap):
         
         if(not freeswap):
             #Swap In Cost
-            swapincost = DamageToHPPercent(FindStrongestMoveDamage(battle.opponent_active_pokemon, pokemon, battle, randdata), pokemon)
+            swapincost = DamageToHPPercent(FindStrongestMoveDamage(battle.opponent_active_pokemon, pokemon, battle, randdata), pokemon, battle)
             Eval = SimBattle(pokemon, battle.opponent_active_pokemon, battle, randdata, swapincost)
         else:
             Eval = SimBattle(pokemon, battle.opponent_active_pokemon, battle, randdata)
@@ -330,5 +399,14 @@ def BestSwitchIn(battle, randdata, freeswap):
     return BestPokemon
     
 
+def StatIncentive(active_pokemon):
+    # -5 For every 3 net Negative Stat Changes
+    statChangesCount = 0
+    # boosts is a dict with key-str Stat, Value int Range(-6,6)
+    for stat in ["accuracy", "atk", "spa", "def", "spd", "spe"]:
+        statChange = active_pokemon.boosts[stat]
+        statChangesCount += statChange
 
-
+    IncentivePerStat = 3
+    
+    return statChangesCount * IncentivePerStat

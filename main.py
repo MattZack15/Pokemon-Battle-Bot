@@ -1,10 +1,9 @@
 import asyncio
 import time
-import matt_bot_player_1
+import basic_bots
 import better_calc_bot
-import better_calc_bot_2
-import zebak_bot_a
-import zebak_bot_b
+from ZebakBot.zebak_bot_a import ZebakBot as ZebakBotA
+from ZebakBot.zebak_bot_b import ZebakBot as ZebakBotB
 from poke_env import AccountConfiguration, ShowdownServerConfiguration
 from poke_env.player import RandomPlayer
 from teams import randomteam, clickdamageteam, swappingteam, jteam, herosteam
@@ -25,14 +24,14 @@ async def main():
     
     # We create a random player
     if(mode == "Sims"):
-        Bot1 = zebak_bot_a.ZebakBot(
+        Bot1 = ZebakBotA(
             battle_format="gen8randombattle",
             max_concurrent_battles= concurrent_battles,
             #account_configuration=AccountConfiguration("RoboDougRoll", "destroyhumans"),
             #server_configuration=ShowdownServerConfiguration,
             #team= clickdamageteam,
         )
-    BetterBot = zebak_bot_b.ZebakBot(
+    BetterBot = ZebakBotB(
         battle_format="gen8randombattle",
         max_concurrent_battles= concurrent_battles,
         #account_configuration=AccountConfiguration("RoboDougRoll", "destroyhumans"),
