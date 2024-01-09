@@ -1,0 +1,9 @@
+blastoise: 58.6%
+turtonator: 50.8%
+omastar: 50.0%
+cloyster: 49.6%
+barbaracle: 49.0%
+polteageist: 48.6%
+carracosta: 48.3%
+crustle: 44.5%
+ditto: 0.0%

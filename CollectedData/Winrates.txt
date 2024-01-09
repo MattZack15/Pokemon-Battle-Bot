@@ -1,0 +1,17 @@
+Era1 Random
+Random = 50%
+Random2 = 84%
+BasePower = 88%
+
+
+Era2 Random2
+Random2 = 50%
+BasePower = 82%
+SmartDamage = 96.5%
+Switching = 97.3%
+BetterCalc = 98.1%
+
+Era3 SmartDamage
+Switching = 69.5%
+BetterCalc = 70%
+BetterCalc2 = 72.7%

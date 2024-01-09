@@ -3,6 +3,8 @@ import time
 import matt_bot_player_1
 import better_calc_bot
 import better_calc_bot_2
+import zebak_bot_a
+import zebak_bot_b
 from poke_env import AccountConfiguration, ShowdownServerConfiguration
 from poke_env.player import RandomPlayer
 from teams import randomteam, clickdamageteam, swappingteam, jteam, herosteam
@@ -19,18 +21,18 @@ async def main():
     if mode == "Online":
         concurrent_battles = 1
     elif mode == "Sims":
-        concurrent_battles = 1
+        concurrent_battles = 4
     
     # We create a random player
     if(mode == "Sims"):
-        Bot1 = better_calc_bot_2.BetterCalc2(
+        Bot1 = zebak_bot_a.ZebakBot(
             battle_format="gen8randombattle",
             max_concurrent_battles= concurrent_battles,
             #account_configuration=AccountConfiguration("RoboDougRoll", "destroyhumans"),
             #server_configuration=ShowdownServerConfiguration,
             #team= clickdamageteam,
         )
-    BetterBot = better_calc_bot_2.BetterCalc2(
+    BetterBot = zebak_bot_b.ZebakBot(
         battle_format="gen8randombattle",
         max_concurrent_battles= concurrent_battles,
         #account_configuration=AccountConfiguration("RoboDougRoll", "destroyhumans"),
@@ -42,13 +44,13 @@ async def main():
 
 
     if mode == "Sims":
-        testCount = 1000
+        testCount = 100
         await BetterBot.battle_against(Bot1, n_battles=testCount)
 
     
     #data = CollectData(BetterBot)
     #data = CollectData(BetterBot, data)
-    #PrintData(data, "./RandWinrates.txt")
+    #PrintData(data, "./CollectedData/RandWinrates.txt")
     
 
     # Sending challenges to 'your_username'
@@ -62,7 +64,7 @@ async def main():
 
     if(mode == "Online"):
         #Number of Requested games
-        TotalGames = 10
+        TotalGames = 100
         GamesCount = 0
         while(GamesCount < TotalGames):
             await BetterBot.ladder(1)
@@ -76,12 +78,12 @@ async def main():
                 )
             )
             newrating = list(BetterBot.battles.items())[-1][1].rating
-            f = open("./highest_rating.txt", "r")
+            f = open("./CollectedData/highest_rating.txt", "r")
             oldrating = int(f.readline())
             f.close()
             
             if newrating > oldrating:
-                f = open("./highest_rating.txt", "w")
+                f = open("./CollectedData/highest_rating.txt", "w")
                 f.writelines(str(newrating))
                 f.close()
 
@@ -89,7 +91,6 @@ async def main():
             print(f"Rating: {newrating}")
 
     
-    # Playing 5 games on the ladder
     
 
     # Print the rating of the player and its opponent after each battle
