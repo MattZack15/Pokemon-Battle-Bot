@@ -16,6 +16,18 @@ def IsWindMove(move):
     else:
         return False
     
+def IsRecoverMove(move):
+    if move.id in recover_moves:
+        return True
+    else:
+        return False
+    
+def IsRecoilMove(move):
+    if move.id in recoil_moves:
+        return True
+    else:
+        return False
+    
 wind_moves = [
     "aeroblast",
     "aircutter",
@@ -34,6 +46,24 @@ wind_moves = [
     "twister",
     "whirlwind",
     "wildboltstorm"
+]
+
+recover_moves = ["recover", "roost", "slackoff", "softboiled", "milkdrink", "moonlight", "morningsun", "healorder"]
+
+recoil_moves = [
+    "axekick",
+    "bravebird",
+    "doubleedge",
+    "flareblitz",
+    "headcharge",
+    "headsmash",
+    "highjumpkick",
+    "jumpkick",
+    "submission",
+    "supercellslam",
+    "takedown",
+    "wavecrash",
+    "wildcharge"
 ]
 
 secondaryeffectlist = [
