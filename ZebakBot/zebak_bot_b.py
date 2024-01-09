@@ -4,10 +4,9 @@ from poke_env.player.player import Player
 from poke_env.environment.move_category import MoveCategory
 from poke_env.environment.pokemon_type import PokemonType
 from poke_env.environment.status import Status
-from ConsiderStatusMove import ConsiderStatusMove
-from BattleSim import SimBattle, FindStrongestMoveDamage
-from ConsiderStatusMove import ConsiderStatusMove
-from BestDamageMove import HasGuaranteedKO, BestKOMove, FindStrongestMoveDamage
+from ZebakBot.ConsiderStatusMove import ConsiderStatusMove
+from ZebakBot.BattleSim import SimBattle, FindStrongestMoveDamage
+from ZebakBot.BestDamageMove import HasGuaranteedKO, BestKOMove, FindStrongestMoveDamage
 import movetraits
 import random
 import math
@@ -151,7 +150,7 @@ def ShouldSwap(battle, randdata):
     TeamEvals = {}
     for pokemon in battle.available_switches:
         #Estimate Swap In Cost
-        swapincost = DamageToHPPercent(FindStrongestMoveDamage(Enemy, pokemon, battle, randdata), pokemon, battle)
+        swapincost = FindStrongestMoveDamage(Enemy, pokemon, battle, randdata)
 
         newEval = SimBattle(pokemon, Enemy, battle, randdata, swapincost)
         
@@ -188,7 +187,7 @@ def BestSwitchIn(battle, randdata, freeswap):
         
         if(not freeswap):
             #Swap In Cost
-            swapincost = DamageToHPPercent(FindStrongestMoveDamage(battle.opponent_active_pokemon, pokemon, battle, randdata), pokemon, battle)
+            swapincost = FindStrongestMoveDamage(battle.opponent_active_pokemon, pokemon, battle, randdata)
             Eval = SimBattle(pokemon, battle.opponent_active_pokemon, battle, randdata, swapincost)
         else:
             Eval = SimBattle(pokemon, battle.opponent_active_pokemon, battle, randdata)

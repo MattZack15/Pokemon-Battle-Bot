@@ -1,7 +1,7 @@
 from calctools import CalcDamage, GetMoves, HasStatus, DamageToHPPercent, IsFaster, GetPokemonStat
 from poke_env.environment.status import Status
-from ConsiderStatusMove import ConsiderStatusMove
-from BestDamageMove import FindStrongestMoveDamage
+from ZebakBot.ConsiderStatusMove import ConsiderStatusMove
+from ZebakBot.BestDamageMove import FindStrongestMoveDamage
 from movetraits import IsRecoverMove
 import math
 import copy

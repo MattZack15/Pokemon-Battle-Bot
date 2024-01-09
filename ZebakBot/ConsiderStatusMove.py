@@ -3,8 +3,8 @@ from poke_env.environment.field import Field
 from poke_env.environment.move_category import MoveCategory
 from calctools import CalcDamage, GetPokemonStat, GetMoves, HasStatus, DamageToHPPercent, IsFaster
 from poke_env.environment.pokemon_type import PokemonType
-from BestDamageMove import FindStrongestMoveDamage, HasGuaranteedKO
-import movetraits 
+from ZebakBot.BestDamageMove import FindStrongestMoveDamage, HasGuaranteedKO
+import movetraits
 
 def ConsiderStatusMove(attacker, defender, battle, randdata):
     # In this function we know
